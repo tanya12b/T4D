@@ -1,0 +1,69 @@
+
+// Define the starting LED state and use a timer to compare the match value.
+uint8_t LedState = LOW;
+int timer1_compare_match;
+
+void setup() {
+  // Configure pins 2, 3, and 4 to be input pull-up modes, and pin 13 to be the LED output.
+  pinMode(2, INPUT_PULLUP);
+  pinMode(3, INPUT_PULLUP);      
+  pinMode(4, INPUT_PULLUP);
+  pinMode(13, OUTPUT);
+
+  // Attach interrupts for the pins 2 and 3
+  attachInterrupt(digitalPinToInterrupt(2), RedLedOn, RISING);
+  attachInterrupt(digitalPinToInterrupt(3), GreenLedOn, FALLING);
+
+  // For pin 8, enable pin change interrupts
+  PCICR |= B00000001;
+  PCMSK0 |= B00000001;
+  
+  //Set Timer1 to interrupt once every one second
+  TCCR1A = 0;
+  TCCR1B = 0;
+  timer1_compare_match = 31249; // Set compare match value for 1-second interrupt
+  TCNT1 = timer1_compare_match;
+  TCCR1B |= (1 << CS12); //Put the prescaler at 256. 
+  TIMSK1 |= (1 << OCIE1A); //Turn on the compare match interrupt.
+
+  // Initiate serial communication
+  Serial.begin(9600);
+}
+
+void loop() {
+  // Since interrupts are used for the primary functionality, no code is needed here.
+}
+
+// ISR for pin 2 motion detection
+void RedLedOn() {
+  Serial.println("Motion 1 detected"); //Print the motion sensor 1 message .
+  Serial.println("Value: " + String(digitalRead(2))); // Print pin 2 value (motion sensor 1)
+  LedState = !LedState; //Change the LED's state
+  digitalWrite(13, LedState); // Turn on the LED 
+}
+
+// use pin 3's ISR for motion detection. 
+void GreenLedOn() {
+  Serial.println("Motion 2 detected"); // Print motion detection message for sensor 2
+  Serial.println("Value: " + String(digitalRead(3))); // Print pin 3 value (motion sensor 2)
+  LedState = !LedState; //Change the LED's state
+  digitalWrite(13, LedState); // Turn on the LED 
+}
+
+// ISR for pin 8 (Sensor 2) motion detection Verify that Sensor 2 is pushed.
+ISR (PCINT0_vect) {
+  if (digitalRead(8) == LOW) { // Check if Sensor 2 is pressed
+    Serial.println("Motion 3 detected"); // Print motion detection message for sensor 3
+    Serial.println("Value: " + String(digitalRead(8))); 
+    LedState = !LedState; // Change the LED's state
+    digitalWrite(13, LedState); // Turn on the LED 
+  }
+}
+
+//Timer1 compares the LED blinking to the matching ISR
+ISR(TIMER1_COMPA_vect) {
+  TCNT1 = timer1_compare_match; // Reset the Timer 1 counter.
+  digitalWrite(13, digitalRead(13) ^ 1); //Turn on the LED
+}
+
+
